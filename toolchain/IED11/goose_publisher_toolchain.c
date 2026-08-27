@@ -529,7 +529,7 @@ double getRuningTime(){
 	gettimeofday(&currentTime, NULL);
 	double time_taken = currentTime.tv_sec + currentTime.tv_usec / 1e6 -
 	                        beginTime2.tv_sec - beginTime2.tv_usec / 1e6; // in seconds
-
+	return time_taken;
 }
 int getHexFromString(int index,char * string){
 	char* substr = malloc(2);
