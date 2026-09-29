@@ -188,7 +188,7 @@ bool stobool(const char *value) {
 	return false;
 }
 
-const char** getfield(char *line) {
+char** getfield(char *line) {
 	int init_size = strlen(line);
 	char delim[] = ",";
 

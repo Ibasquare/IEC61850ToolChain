@@ -3,6 +3,12 @@
 //original link: https://blog.csdn.net/sinat_36184075/article/details/80489402
 #include "TimeTriggerAttack.h"
 
+/* Prototypes from goose_publisher_toolchain.c — do not include that header here:
+ * it pulls models/static_model.c and would duplicate symbols under `gcc *.c`. */
+void insertPacket(struct InsertAttack *attack);
+void createDoSAttackThread(struct DosAttack *attack);
+void ModifyArrayTriggerByTime(struct ModifyAttack *mAttack);
+
 void launch_insert_attack_thread(union sigval v)
 {
 	struct InsertAttack *attack=(struct InsertAttack*)v.sival_ptr;

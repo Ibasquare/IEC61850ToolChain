@@ -13,7 +13,7 @@
 
 
 bool stobool(const char* value);
-const char** getfield(char *line);
+char** getfield(char *line);
 double getTime();
 void updateStNum(IedServer iedserver);
 

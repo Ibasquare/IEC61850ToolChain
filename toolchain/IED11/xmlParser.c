@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "xmlParser.h"
+#include "TimeTriggerAttack.h"
 #include <unistd.h>
 
 /*
