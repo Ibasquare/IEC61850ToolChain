@@ -9,21 +9,44 @@ void insertPacket(struct InsertAttack *attack);
 void createDoSAttackThread(struct DosAttack *attack);
 void ModifyArrayTriggerByTime(struct ModifyAttack *mAttack);
 
+static int pendingTimedAttacks = 0;
+static int finishedTimedAttacks = 0;
+
+static void noteTimedAttackArmed(void)
+{
+	__atomic_add_fetch(&pendingTimedAttacks, 1, __ATOMIC_RELAXED);
+}
+
+static void noteTimedAttackFinished(void)
+{
+	__atomic_add_fetch(&finishedTimedAttacks, 1, __ATOMIC_RELAXED);
+}
+
+int timedAttacksFinished(void)
+{
+	int pending = __atomic_load_n(&pendingTimedAttacks, __ATOMIC_RELAXED);
+	int finished = __atomic_load_n(&finishedTimedAttacks, __ATOMIC_RELAXED);
+	return pending > 0 && finished >= pending;
+}
+
 void launch_insert_attack_thread(union sigval v)
 {
 	struct InsertAttack *attack=(struct InsertAttack*)v.sival_ptr;
 	insertPacket(attack);
+	noteTimedAttackFinished();
 }
 void launch_dos_attack_thread(union sigval v)
 {
 	struct DosAttack *attack=(struct DosAttack*)v.sival_ptr;
 	createDoSAttackThread(attack);
+	noteTimedAttackFinished();
 }
 void launch_modify_attack_thread(union sigval v)
 {
 	printf("sigval v pointer is %d\n",v.sival_ptr);
 	struct ModifyAttack *attack=(struct ModifyAttack*)v.sival_ptr;
 	ModifyArrayTriggerByTime(attack);
+	noteTimedAttackFinished();
 
 }
 void setTimerforInsertAttack(struct InsertAttack*  inAttack )
@@ -53,6 +76,7 @@ void setTimerforInsertAttack(struct InsertAttack*  inAttack )
         perror("fail to timer_settime");
         exit(-1);
     }
+    noteTimedAttackArmed();
 }
 
 void setTimerforDosAttack(struct DosAttack* dosAttack )
@@ -84,6 +108,7 @@ void setTimerforDosAttack(struct DosAttack* dosAttack )
         perror("fail to timer_settime");
         exit(-1);
     }
+    noteTimedAttackArmed();
 }
 void setTimerforModifyAttack(struct ModifyAttack * mofAttack )
 {
@@ -115,4 +140,5 @@ void setTimerforModifyAttack(struct ModifyAttack * mofAttack )
         perror("fail to timer_settime");
         exit(-1);
     }
+    noteTimedAttackArmed();
 }

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include "goose_publisher_toolchain.h"
+#include "TimeTriggerAttack.h"
 #include <unistd.h>
 #include "ied_server_private.h"
 #include "mms_goose.h"
@@ -135,6 +136,18 @@ int main(int argc, char **argv) {
 	gettimeofday(&beginTime2, NULL);
 	printf("start time is %f\n",getRuningTime());
 	while (getRuningTime()<programDuration) {
+		/* A one-shot scenario does not publish the IED model. Once its
+		 * timers and list attacks have returned, leave. Waiting out
+		 * programDuration keeps the process alive after the flood, and a
+		 * sim that reaches its limit first kills it before exit 0. */
+		if (!attackScenarioNeedsIedGoose && attackList != NULL && timedAttacksFinished()
+				&& executedInsertAttackCount >= attackList->insertAttackNum
+				&& executedModifyAttackCount >= attackList->modifyAttackNum
+				&& executedDosAttackCount >= attackList->dosAttackNum) {
+			printf("one-shot scenario finished at %f, not waiting for duration %f\n",
+					getRuningTime(), programDuration);
+			break;
+		}
 		//printf("iterate time is %f\n",getRuningTime());
 		lineSize = getline(&buffer, &bufsize, valueFileStream);
 		if (lineSize != -1) { //read a new line from csv
