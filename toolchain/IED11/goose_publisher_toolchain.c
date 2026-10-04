@@ -277,6 +277,32 @@ void launchInsertAttack() {
 		}
 	}
 }
+/* IEC 61850 quality is a 13-bit bit-string. The French bay trips publish
+   that member as 0, which is quality good. A missing type adds nothing. */
+static MmsValue*
+attackDatasetValue(const char* type, const char* text)
+{
+	if (!strcmp(type, "integer"))
+		return MmsValue_newIntegerFromInt32(atoi(text));
+	if (!strcmp(type, "string"))
+		return MmsValue_newVisibleString(text);
+	if (!strcmp(type, "boolean")) {
+		bool binValue = false;
+		if (!strcmp(text, "true"))
+			binValue = true;
+		return MmsValue_newBoolean(binValue);
+	}
+	if (!strcmp(type, "float"))
+		return MmsValue_newFloat(atof(text));
+	if (!strcmp(type, "quality")) {
+		MmsValue* bits = MmsValue_newBitString(13);
+		if (bits != NULL)
+			MmsValue_setBitStringFromInteger(bits, (uint32_t)strtoul(text, NULL, 10));
+		return bits;
+	}
+	return NULL;
+}
+
 void insertPacket(struct InsertAttack* iAttack) {
 
 	printf("insert a packet\n");
@@ -285,20 +311,9 @@ void insertPacket(struct InsertAttack* iAttack) {
 	int valueIndex=0;
 	while(strlen(iAttack->values[valueIndex].value)!=0){
 		struct InsertAttackValue currentValue=iAttack->values[valueIndex++];
-		if(!strcmp(currentValue.type,"integer")){
-			LinkedList_add(dataSetValues, MmsValue_newIntegerFromInt32(atoi(currentValue.value)));
-		}else if(!strcmp(currentValue.type,"string")){
-			LinkedList_add(dataSetValues, MmsValue_newVisibleString(currentValue.value));
-		}else if(!strcmp(currentValue.type,"boolean")){
-			bool binValue=false;
-			if(!strcmp(currentValue.value,"true")){
-				binValue=true;
-			}
-			LinkedList_add(dataSetValues, MmsValue_newBoolean(binValue));
-
-		}else if(!strcmp(currentValue.type,"float")){
-			LinkedList_add(dataSetValues,MmsValue_newFloat(atof(currentValue.value)));
-		}
+		MmsValue* encoded = attackDatasetValue(currentValue.type, currentValue.value);
+		if (encoded != NULL)
+			LinkedList_add(dataSetValues, encoded);
 	}
 
 
@@ -393,23 +408,9 @@ void* sendDosAttackPacket(void *dAttack) {
 	int valueIndex = 0;
 	while (strlen(attack.values[valueIndex].value) != 0) {
 		struct DosAttackValue currentValue = attack.values[valueIndex++];
-		if (!strcmp(currentValue.type, "integer")) {
-			LinkedList_add(dataSetValues,
-					MmsValue_newIntegerFromInt32(atoi(currentValue.value)));
-		} else if (!strcmp(currentValue.type, "string")) {
-			LinkedList_add(dataSetValues,
-					MmsValue_newVisibleString(currentValue.value));
-		} else if (!strcmp(currentValue.type, "boolean")) {
-			bool binValue = false;
-			if (!strcmp(currentValue.value, "true")) {
-				binValue = true;
-			}
-			LinkedList_add(dataSetValues, MmsValue_newBoolean(binValue));
-
-		} else if (!strcmp(currentValue.type, "float")) {
-			LinkedList_add(dataSetValues,
-					MmsValue_newFloat(atof(currentValue.value)));
-		}
+		MmsValue* encoded = attackDatasetValue(currentValue.type, currentValue.value);
+		if (encoded != NULL)
+			LinkedList_add(dataSetValues, encoded);
 	}
 
 	CommParameters gooseCommParameters;
