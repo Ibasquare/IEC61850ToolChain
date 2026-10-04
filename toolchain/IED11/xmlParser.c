@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "xmlParser.h"
 #include "TimeTriggerAttack.h"
 #include <unistd.h>
@@ -228,7 +229,7 @@ struct InsertAttack* parserInsertAttackXML(xmlNode *attackNode) {
 }
 struct DosAttack* parserDosAttackXML(xmlNode *attackNode) {
 	xmlAttr *attribute = attackNode->properties;
-	struct DosAttack* dosAtta=(struct DosAttack*)malloc(sizeof(struct DosAttack));
+	struct DosAttack* dosAtta=(struct DosAttack*)calloc(1, sizeof(struct DosAttack));
 	dosAtta->valid=false;
 	while (attribute) {
 		if (!strcmp(attribute->name, "enable")) {

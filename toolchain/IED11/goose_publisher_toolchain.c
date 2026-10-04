@@ -428,6 +428,10 @@ void* sendDosAttackPacket(void *dAttack) {
 	GoosePublisher_setGoCbRef(publisher, attack.gocbRef);
 	GoosePublisher_setConfRev(publisher, 1);
 	GoosePublisher_setDataSetRef(publisher, attack.dataSet);
+	if (attack.goID[0] != '\0')
+		GoosePublisher_setGoID(publisher, attack.goID);
+	if (attack.timeAllowedtoLive > 0)
+		GoosePublisher_setTimeAllowedToLive(publisher, (uint32_t) attack.timeAllowedtoLive);
 
 	int j;
 	for(j=0;j<attack.stopCondition_packetNum;j++){
