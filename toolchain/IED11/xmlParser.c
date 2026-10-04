@@ -9,7 +9,10 @@
  *gcc `xml2-config --cflags --libs` -o xmlexample libxml2-example.c
  * gcc -I/usr/include/libxml2  xmlParser.c -o xmlParser -lxml2
  */
+int attackScenarioNeedsIedGoose = 0;
+
 struct AttackList* getAttackList(char * filename) {
+	attackScenarioNeedsIedGoose = 0;
 
 	xmlDoc *doc = NULL;
 	xmlNode *root_element = NULL;
@@ -51,6 +54,8 @@ struct AttackList* parserAttacks(xmlNode *a_node) {
 						if (!strcmp(value, "insertAttack")) {
 							struct InsertAttack* inAttack =parserInsertAttackXML(cur_node);
 							if(inAttack->valid){
+								if(inAttack->condition_type==CONDITION_ST_SQ_GCB || inAttack->condition_type==CONDITION_PAYLOAD)
+									attackScenarioNeedsIedGoose = 1;
 								if(inAttack->condition_type==CONDITION_TIME){// if trigger condition is time, set timer event
 									setTimerforInsertAttack(inAttack);
 								}else{
@@ -62,6 +67,7 @@ struct AttackList* parserAttacks(xmlNode *a_node) {
 						else if (!strcmp(value, "modifyAttack")) {
 							struct ModifyAttack* mdfAttack=parserModifyAttackXML2(cur_node);
 							if(mdfAttack->valid){
+								attackScenarioNeedsIedGoose = 1;
 								if(mdfAttack->condition_type==CONDITION_TIME){// if trigger condition is time, set timer event
 									setTimerforModifyAttack(mdfAttack);
 								}else{
@@ -72,6 +78,8 @@ struct AttackList* parserAttacks(xmlNode *a_node) {
 						else if (!strcmp(value, "dosAttack")){
 							struct DosAttack *dosAttack=parserDosAttackXML(cur_node);
 							if(dosAttack->valid){
+								if(dosAttack->condition_type==CONDITION_ST_SQ_GCB || dosAttack->condition_type==CONDITION_PAYLOAD)
+									attackScenarioNeedsIedGoose = 1;
 								if(dosAttack->condition_type==CONDITION_TIME){// if trigger condition is time, set timer event
 									setTimerforDosAttack(dosAttack);
 								}else{

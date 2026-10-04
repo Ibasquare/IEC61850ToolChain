@@ -26,6 +26,10 @@ struct ModifyAttack* parserModifyAttackXML2(xmlNode *attackNode);
 struct DosAttack* parserDosAttackXML(xmlNode *attackNode);
 struct ModifyAttackModification parseModifyAttackValue(xmlNode * modificationNode);
 struct AttackList* getAttackList();
+/* Set by the parser. Modify attacks, and insert/dos attacks that watch the
+   IED's own GOOSE control block, need IedServer_enableGoosePublishing.
+   A time-triggered insert or dos publishes through its own GoosePublisher. */
+extern int attackScenarioNeedsIedGoose;
 double getRuningTime();
 struct PayloadCondition parserPayloadCondtion(xmlNode *payloadCondtionNode);
 void initializeList(struct AttackList *attList);

@@ -78,8 +78,7 @@ int main(int argc, char **argv) {
 	}
 
 
-	/* Start GOOSE publishing */
-	IedServer_enableGoosePublishing(iedServer);
+	/* The IED model's own GOOSE is started only after the scenario is read. */
 
 	/*prepare "value csv file" and "attack scenario file" reading*/
 	FILE *valueFileStream;
@@ -113,6 +112,11 @@ int main(int argc, char **argv) {
 
 	// Read attack infor from xml file.
     attackList=getAttackList(attackFileName);
+	if (attackScenarioNeedsIedGoose) {
+		IedServer_enableGoosePublishing(iedServer);
+	} else {
+		printf("IED model GOOSE publishing left off (scenario does not observe it)\n");
+	}
 
 
 
@@ -225,7 +229,8 @@ void updateStNum(IedServer iedserver) {
 	while ((element = LinkedList_getNext(element)) != NULL) {
 		MmsGooseControlBlock gcb = (MmsGooseControlBlock) element->data;
 		GoosePublisher publisher = gcb->publisher;
-		GoosePublisher_increaseStNum(publisher);
+		if (publisher)
+			GoosePublisher_increaseStNum(publisher);
 	}
 }
 //void launchInsertAttack(IedServer iedserver, char **results) {
