@@ -341,6 +341,8 @@ struct DosAttack* parserDosAttackXML(xmlNode *attackNode) {
 											strcpy(dosAtta->gocbRef, value);
 										} else if (!strcmp(payloadChild->name,"timeAllowedtoLive")) {
 											dosAtta->timeAllowedtoLive = atoi(value);
+										} else if (!strcmp(payloadChild->name,"publishIntervalMs")) {
+											dosAtta->publishIntervalMs = atoi(value);
 										} else if (!strcmp(payloadChild->name,"dataSet")) {
 											strcpy(dosAtta->dataSet, value);
 										} else if (!strcmp(payloadChild->name,"goID")) {

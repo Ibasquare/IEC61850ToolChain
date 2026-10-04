@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <time.h>
 #include "goose_publisher_toolchain.h"
 #include "TimeTriggerAttack.h"
 #include <unistd.h>
@@ -457,6 +458,16 @@ void* sendDosAttackPacket(void *dAttack) {
 	//for(j=0;j<100;j++){
 		if (GoosePublisher_publish(publisher, dataSetValues) == -1) {
 				printf("Error sending message!\n");
+		}
+		/* An omitted interval stays 0 and keeps this loop tight. A set
+		   interval is the gap between frames. It is not derived from the
+		   advertised lifetime. */
+		if (attack.publishIntervalMs > 0
+				&& j + 1 < attack.stopCondition_packetNum) {
+			struct timespec gap;
+			gap.tv_sec = attack.publishIntervalMs / 1000;
+			gap.tv_nsec = (long) (attack.publishIntervalMs % 1000) * 1000000L;
+			nanosleep(&gap, NULL);
 		}
 	}
 	GoosePublisher_destroy(publisher);

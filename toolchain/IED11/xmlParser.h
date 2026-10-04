@@ -96,6 +96,9 @@ struct DosAttack{
 	int vlanPriority;
 	char gocbRef[50];
 	int timeAllowedtoLive;
+	/* 0 keeps the tight publish loop. A positive value is the gap, in
+	   milliseconds, between frames. It is not derived from timeAllowedtoLive. */
+	int publishIntervalMs;
 	char dataSet[50];
 	char goID[50];
 	/*define stop contition*/
