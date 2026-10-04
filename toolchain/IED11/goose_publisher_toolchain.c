@@ -536,11 +536,13 @@ double getRuningTime(){
 	return time_taken;
 }
 int getHexFromString(int index,char * string){
-	char* substr = malloc(2);
-	strncpy(substr, string+index, 2);
-	int number = (int)strtol(substr, NULL, 16);
-	free(substr);
-	return number;
+	/* Two hex digits only. malloc(2) left no terminator, so strtol read the
+	   next heap byte and the GOOSE destination was not the scenario address. */
+	char substr[3];
+	substr[0] = string[index];
+	substr[1] = string[index + 1];
+	substr[2] = '\0';
+	return (int)strtol(substr, NULL, 16);
 }
 bool payloadConditionTrigger(struct PayloadCondition condition_payloads[MAXIMUM_CONDITION_PAYLOAD_SIZE],char **results){
 	int i=0;
