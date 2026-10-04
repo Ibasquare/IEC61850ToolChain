@@ -26,6 +26,10 @@ struct ModifyAttack* parserModifyAttackXML2(xmlNode *attackNode);
 struct DosAttack* parserDosAttackXML(xmlNode *attackNode);
 struct ModifyAttackModification parseModifyAttackValue(xmlNode * modificationNode);
 struct AttackList* getAttackList();
+/* Set by the parser. Modify attacks, and insert/dos attacks that watch the
+   IED's own GOOSE control block, need IedServer_enableGoosePublishing.
+   A time-triggered insert or dos publishes through its own GoosePublisher. */
+extern int attackScenarioNeedsIedGoose;
 double getRuningTime();
 struct PayloadCondition parserPayloadCondtion(xmlNode *payloadCondtionNode);
 void initializeList(struct AttackList *attList);
@@ -92,6 +96,9 @@ struct DosAttack{
 	int vlanPriority;
 	char gocbRef[50];
 	int timeAllowedtoLive;
+	/* 0 keeps the tight publish loop. A positive value is the gap, in
+	   milliseconds, between frames. It is not derived from timeAllowedtoLive. */
+	int publishIntervalMs;
 	char dataSet[50];
 	char goID[50];
 	/*define stop contition*/

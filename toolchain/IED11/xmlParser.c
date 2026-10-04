@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "xmlParser.h"
+#include "TimeTriggerAttack.h"
 #include <unistd.h>
 
 /*
@@ -7,7 +9,10 @@
  *gcc `xml2-config --cflags --libs` -o xmlexample libxml2-example.c
  * gcc -I/usr/include/libxml2  xmlParser.c -o xmlParser -lxml2
  */
+int attackScenarioNeedsIedGoose = 0;
+
 struct AttackList* getAttackList(char * filename) {
+	attackScenarioNeedsIedGoose = 0;
 
 	xmlDoc *doc = NULL;
 	xmlNode *root_element = NULL;
@@ -49,6 +54,8 @@ struct AttackList* parserAttacks(xmlNode *a_node) {
 						if (!strcmp(value, "insertAttack")) {
 							struct InsertAttack* inAttack =parserInsertAttackXML(cur_node);
 							if(inAttack->valid){
+								if(inAttack->condition_type==CONDITION_ST_SQ_GCB || inAttack->condition_type==CONDITION_PAYLOAD)
+									attackScenarioNeedsIedGoose = 1;
 								if(inAttack->condition_type==CONDITION_TIME){// if trigger condition is time, set timer event
 									setTimerforInsertAttack(inAttack);
 								}else{
@@ -60,6 +67,7 @@ struct AttackList* parserAttacks(xmlNode *a_node) {
 						else if (!strcmp(value, "modifyAttack")) {
 							struct ModifyAttack* mdfAttack=parserModifyAttackXML2(cur_node);
 							if(mdfAttack->valid){
+								attackScenarioNeedsIedGoose = 1;
 								if(mdfAttack->condition_type==CONDITION_TIME){// if trigger condition is time, set timer event
 									setTimerforModifyAttack(mdfAttack);
 								}else{
@@ -70,6 +78,8 @@ struct AttackList* parserAttacks(xmlNode *a_node) {
 						else if (!strcmp(value, "dosAttack")){
 							struct DosAttack *dosAttack=parserDosAttackXML(cur_node);
 							if(dosAttack->valid){
+								if(dosAttack->condition_type==CONDITION_ST_SQ_GCB || dosAttack->condition_type==CONDITION_PAYLOAD)
+									attackScenarioNeedsIedGoose = 1;
 								if(dosAttack->condition_type==CONDITION_TIME){// if trigger condition is time, set timer event
 									setTimerforDosAttack(dosAttack);
 								}else{
@@ -227,7 +237,7 @@ struct InsertAttack* parserInsertAttackXML(xmlNode *attackNode) {
 }
 struct DosAttack* parserDosAttackXML(xmlNode *attackNode) {
 	xmlAttr *attribute = attackNode->properties;
-	struct DosAttack* dosAtta=(struct DosAttack*)malloc(sizeof(struct DosAttack));
+	struct DosAttack* dosAtta=(struct DosAttack*)calloc(1, sizeof(struct DosAttack));
 	dosAtta->valid=false;
 	while (attribute) {
 		if (!strcmp(attribute->name, "enable")) {
@@ -331,6 +341,8 @@ struct DosAttack* parserDosAttackXML(xmlNode *attackNode) {
 											strcpy(dosAtta->gocbRef, value);
 										} else if (!strcmp(payloadChild->name,"timeAllowedtoLive")) {
 											dosAtta->timeAllowedtoLive = atoi(value);
+										} else if (!strcmp(payloadChild->name,"publishIntervalMs")) {
+											dosAtta->publishIntervalMs = atoi(value);
 										} else if (!strcmp(payloadChild->name,"dataSet")) {
 											strcpy(dosAtta->dataSet, value);
 										} else if (!strcmp(payloadChild->name,"goID")) {

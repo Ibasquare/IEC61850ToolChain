@@ -63,6 +63,13 @@ struct sGoosePublisher {
     MmsValue* timestamp; /* time when stNum is increased */
 };
 
+/* setUtcTimeMs writes 0x0a, which leaves the clock-not-synchronized bit
+ * clear. The Cycosim IEDs write 0x20 for that same clock. */
+static void
+markGooseTimeNotSynchronized(GoosePublisher self)
+{
+    MmsValue_setUtcTimeQuality(self->timestamp, 0x20);
+}
 
 GoosePublisher
 GoosePublisher_create(CommParameters* parameters, const char* interfaceID)
@@ -72,6 +79,7 @@ GoosePublisher_create(CommParameters* parameters, const char* interfaceID)
     prepareGooseBuffer(self, parameters, interfaceID);
 
     self->timestamp = MmsValue_newUtcTimeByMsTime(Hal_getTimeInMs());
+    markGooseTimeNotSynchronized(self);
 
     GoosePublisher_reset(self);
 
@@ -140,6 +148,7 @@ GoosePublisher_increaseStNum(GoosePublisher self)
     uint64_t currentTime = Hal_getTimeInMs();
 
     MmsValue_setUtcTimeMs(self->timestamp, currentTime);
+    markGooseTimeNotSynchronized(self);
 
     self->stNum++;
     self->sqNum = 0;

@@ -8,7 +8,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <time.h>
 #include "goose_publisher_toolchain.h"
+#include "TimeTriggerAttack.h"
 #include <unistd.h>
 #include "ied_server_private.h"
 #include "mms_goose.h"
@@ -78,8 +80,7 @@ int main(int argc, char **argv) {
 	}
 
 
-	/* Start GOOSE publishing */
-	IedServer_enableGoosePublishing(iedServer);
+	/* The IED model's own GOOSE is started only after the scenario is read. */
 
 	/*prepare "value csv file" and "attack scenario file" reading*/
 	FILE *valueFileStream;
@@ -113,6 +114,11 @@ int main(int argc, char **argv) {
 
 	// Read attack infor from xml file.
     attackList=getAttackList(attackFileName);
+	if (attackScenarioNeedsIedGoose) {
+		IedServer_enableGoosePublishing(iedServer);
+	} else {
+		printf("IED model GOOSE publishing left off (scenario does not observe it)\n");
+	}
 
 
 
@@ -131,6 +137,18 @@ int main(int argc, char **argv) {
 	gettimeofday(&beginTime2, NULL);
 	printf("start time is %f\n",getRuningTime());
 	while (getRuningTime()<programDuration) {
+		/* A one-shot scenario does not publish the IED model. Once its
+		 * timers and list attacks have returned, leave. Waiting out
+		 * programDuration keeps the process alive after the flood, and a
+		 * sim that reaches its limit first kills it before exit 0. */
+		if (!attackScenarioNeedsIedGoose && attackList != NULL && timedAttacksFinished()
+				&& executedInsertAttackCount >= attackList->insertAttackNum
+				&& executedModifyAttackCount >= attackList->modifyAttackNum
+				&& executedDosAttackCount >= attackList->dosAttackNum) {
+			printf("one-shot scenario finished at %f, not waiting for duration %f\n",
+					getRuningTime(), programDuration);
+			break;
+		}
 		//printf("iterate time is %f\n",getRuningTime());
 		lineSize = getline(&buffer, &bufsize, valueFileStream);
 		if (lineSize != -1) { //read a new line from csv
@@ -188,7 +206,7 @@ bool stobool(const char *value) {
 	return false;
 }
 
-const char** getfield(char *line) {
+char** getfield(char *line) {
 	int init_size = strlen(line);
 	char delim[] = ",";
 
@@ -225,7 +243,8 @@ void updateStNum(IedServer iedserver) {
 	while ((element = LinkedList_getNext(element)) != NULL) {
 		MmsGooseControlBlock gcb = (MmsGooseControlBlock) element->data;
 		GoosePublisher publisher = gcb->publisher;
-		GoosePublisher_increaseStNum(publisher);
+		if (publisher)
+			GoosePublisher_increaseStNum(publisher);
 	}
 }
 //void launchInsertAttack(IedServer iedserver, char **results) {
@@ -272,6 +291,32 @@ void launchInsertAttack() {
 		}
 	}
 }
+/* IEC 61850 quality is a 13-bit bit-string. The French bay trips publish
+   that member as 0, which is quality good. A missing type adds nothing. */
+static MmsValue*
+attackDatasetValue(const char* type, const char* text)
+{
+	if (!strcmp(type, "integer"))
+		return MmsValue_newIntegerFromInt32(atoi(text));
+	if (!strcmp(type, "string"))
+		return MmsValue_newVisibleString(text);
+	if (!strcmp(type, "boolean")) {
+		bool binValue = false;
+		if (!strcmp(text, "true"))
+			binValue = true;
+		return MmsValue_newBoolean(binValue);
+	}
+	if (!strcmp(type, "float"))
+		return MmsValue_newFloat(atof(text));
+	if (!strcmp(type, "quality")) {
+		MmsValue* bits = MmsValue_newBitString(13);
+		if (bits != NULL)
+			MmsValue_setBitStringFromInteger(bits, (uint32_t)strtoul(text, NULL, 10));
+		return bits;
+	}
+	return NULL;
+}
+
 void insertPacket(struct InsertAttack* iAttack) {
 
 	printf("insert a packet\n");
@@ -280,20 +325,9 @@ void insertPacket(struct InsertAttack* iAttack) {
 	int valueIndex=0;
 	while(strlen(iAttack->values[valueIndex].value)!=0){
 		struct InsertAttackValue currentValue=iAttack->values[valueIndex++];
-		if(!strcmp(currentValue.type,"integer")){
-			LinkedList_add(dataSetValues, MmsValue_newIntegerFromInt32(atoi(currentValue.value)));
-		}else if(!strcmp(currentValue.type,"string")){
-			LinkedList_add(dataSetValues, MmsValue_newVisibleString(currentValue.value));
-		}else if(!strcmp(currentValue.type,"boolean")){
-			bool binValue=false;
-			if(!strcmp(currentValue.value,"true")){
-				binValue=true;
-			}
-			LinkedList_add(dataSetValues, MmsValue_newBoolean(binValue));
-
-		}else if(!strcmp(currentValue.type,"float")){
-			LinkedList_add(dataSetValues,MmsValue_newFloat(atof(currentValue.value)));
-		}
+		MmsValue* encoded = attackDatasetValue(currentValue.type, currentValue.value);
+		if (encoded != NULL)
+			LinkedList_add(dataSetValues, encoded);
 	}
 
 
@@ -388,23 +422,9 @@ void* sendDosAttackPacket(void *dAttack) {
 	int valueIndex = 0;
 	while (strlen(attack.values[valueIndex].value) != 0) {
 		struct DosAttackValue currentValue = attack.values[valueIndex++];
-		if (!strcmp(currentValue.type, "integer")) {
-			LinkedList_add(dataSetValues,
-					MmsValue_newIntegerFromInt32(atoi(currentValue.value)));
-		} else if (!strcmp(currentValue.type, "string")) {
-			LinkedList_add(dataSetValues,
-					MmsValue_newVisibleString(currentValue.value));
-		} else if (!strcmp(currentValue.type, "boolean")) {
-			bool binValue = false;
-			if (!strcmp(currentValue.value, "true")) {
-				binValue = true;
-			}
-			LinkedList_add(dataSetValues, MmsValue_newBoolean(binValue));
-
-		} else if (!strcmp(currentValue.type, "float")) {
-			LinkedList_add(dataSetValues,
-					MmsValue_newFloat(atof(currentValue.value)));
-		}
+		MmsValue* encoded = attackDatasetValue(currentValue.type, currentValue.value);
+		if (encoded != NULL)
+			LinkedList_add(dataSetValues, encoded);
 	}
 
 	CommParameters gooseCommParameters;
@@ -428,12 +448,26 @@ void* sendDosAttackPacket(void *dAttack) {
 	GoosePublisher_setGoCbRef(publisher, attack.gocbRef);
 	GoosePublisher_setConfRev(publisher, 1);
 	GoosePublisher_setDataSetRef(publisher, attack.dataSet);
+	if (attack.goID[0] != '\0')
+		GoosePublisher_setGoID(publisher, attack.goID);
+	if (attack.timeAllowedtoLive > 0)
+		GoosePublisher_setTimeAllowedToLive(publisher, (uint32_t) attack.timeAllowedtoLive);
 
 	int j;
 	for(j=0;j<attack.stopCondition_packetNum;j++){
 	//for(j=0;j<100;j++){
 		if (GoosePublisher_publish(publisher, dataSetValues) == -1) {
 				printf("Error sending message!\n");
+		}
+		/* An omitted interval stays 0 and keeps this loop tight. A set
+		   interval is the gap between frames. It is not derived from the
+		   advertised lifetime. */
+		if (attack.publishIntervalMs > 0
+				&& j + 1 < attack.stopCondition_packetNum) {
+			struct timespec gap;
+			gap.tv_sec = attack.publishIntervalMs / 1000;
+			gap.tv_nsec = (long) (attack.publishIntervalMs % 1000) * 1000000L;
+			nanosleep(&gap, NULL);
 		}
 	}
 	GoosePublisher_destroy(publisher);
@@ -529,14 +563,16 @@ double getRuningTime(){
 	gettimeofday(&currentTime, NULL);
 	double time_taken = currentTime.tv_sec + currentTime.tv_usec / 1e6 -
 	                        beginTime2.tv_sec - beginTime2.tv_usec / 1e6; // in seconds
-
+	return time_taken;
 }
 int getHexFromString(int index,char * string){
-	char* substr = malloc(2);
-	strncpy(substr, string+index, 2);
-	int number = (int)strtol(substr, NULL, 16);
-	free(substr);
-	return number;
+	/* Two hex digits only. malloc(2) left no terminator, so strtol read the
+	   next heap byte and the GOOSE destination was not the scenario address. */
+	char substr[3];
+	substr[0] = string[index];
+	substr[1] = string[index + 1];
+	substr[2] = '\0';
+	return (int)strtol(substr, NULL, 16);
 }
 bool payloadConditionTrigger(struct PayloadCondition condition_payloads[MAXIMUM_CONDITION_PAYLOAD_SIZE],char **results){
 	int i=0;
